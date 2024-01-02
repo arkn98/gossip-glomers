@@ -1,9 +1,9 @@
 package main
 
 import (
-	"encoding/json"
-	"log"
 	"sync"
+
+	"gossip-glomers/internal/app"
 
 	maelstrom "github.com/jepsen-io/maelstrom/demo/go"
 )
@@ -12,23 +12,23 @@ type server struct {
 	node *maelstrom.Node
 	mu   sync.RWMutex
 
-	seen []int
+	store []int
 }
 
 func (s *server) HandleBroadcast(msg maelstrom.Message) error {
-	var body map[string]any
-	if err := json.Unmarshal(msg.Body, &body); err != nil {
+	body, err := app.Unmarshal(msg.Body)
+	if err != nil {
 		return err
 	}
 
-	toAdd := int(body["message"].(float64))
+	toAdd := body.Message
 
 	s.mu.Lock()
-	s.seen = append(s.seen, toAdd)
+	s.store = append(s.store, toAdd)
 	s.mu.Unlock()
 
 	return s.node.Reply(msg, map[string]any{
-		"type": "broadcast_ok",
+		"type": app.MessageBroadcastOk,
 	})
 }
 
@@ -37,15 +37,15 @@ func (s *server) HandleRead(msg maelstrom.Message) error {
 	defer s.mu.RUnlock()
 
 	return s.node.Reply(msg, map[string]any{
-		"type":     "read_ok",
-		"messages": s.seen,
+		"type":     app.MessageReadOk,
+		"messages": s.store,
 	})
 }
 
 func (s *server) HandleTopology(msg maelstrom.Message) error {
 	// do nothing for now
 	return s.node.Reply(msg, map[string]any{
-		"type": "topology_ok",
+		"type": app.MessageTopologyOk,
 	})
 }
 
@@ -53,11 +53,11 @@ func main() {
 	n := maelstrom.NewNode()
 	s := &server{node: n}
 
-	n.Handle("broadcast", s.HandleBroadcast)
-	n.Handle("read", s.HandleRead)
-	n.Handle("topology", s.HandleTopology)
+	n.Handle(app.MessageBroadcast, s.HandleBroadcast)
+	n.Handle(app.MessageRead, s.HandleRead)
+	n.Handle(app.MessageTopology, s.HandleTopology)
 
 	if err := n.Run(); err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 }

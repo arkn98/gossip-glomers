@@ -1,9 +1,9 @@
 package main
 
 import (
-	"encoding/json"
-	"log"
 	"sync"
+
+	"gossip-glomers/internal/app"
 
 	maelstrom "github.com/jepsen-io/maelstrom/demo/go"
 )
@@ -12,36 +12,39 @@ type server struct {
 	node *maelstrom.Node
 	mu   sync.RWMutex
 
-	seen      map[int]bool
+	store     map[int]bool
 	neighbors []string
 }
 
 func (s *server) HandleBroadcast(msg maelstrom.Message) error {
-	var body map[string]any
-	if err := json.Unmarshal(msg.Body, &body); err != nil {
+	body, err := app.Unmarshal(msg.Body)
+	if err != nil {
 		return err
 	}
 
-	toAdd := int(body["message"].(float64))
+	key := body.Message
 
 	s.mu.Lock()
-	if _, ok := s.seen[toAdd]; ok {
+	if _, ok := s.store[key]; ok {
 		s.mu.Unlock()
 		return nil
 	}
-	s.seen[toAdd] = true
+	s.store[key] = true
 	s.mu.Unlock()
 
 	// broadcast this message to our neighbors
-	go s.Broadcast(body)
+	go s.Broadcast(msg.Src, body)
 
 	return s.node.Reply(msg, map[string]any{
-		"type": "broadcast_ok",
+		"type": app.MessageBroadcastOk,
 	})
 }
 
-func (s *server) Broadcast(body any) {
+func (s *server) Broadcast(src string, body any) {
 	for _, dest := range s.neighbors {
+		if dest == src {
+			continue
+		}
 		s.node.Send(dest, body)
 	}
 }
@@ -50,25 +53,20 @@ func (s *server) HandleRead(msg maelstrom.Message) error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	keys := make([]int, 0, len(s.seen))
-	for k, _ := range s.seen {
+	keys := make([]int, 0, len(s.store))
+	for k, _ := range s.store {
 		keys = append(keys, k)
 	}
 
 	return s.node.Reply(msg, map[string]any{
-		"type":     "read_ok",
+		"type":     app.MessageReadOk,
 		"messages": keys,
 	})
 }
 
-type TopologyReq struct {
-	Type     string              `json:"type"`
-	Topology map[string][]string `json:"topology"`
-}
-
 func (s *server) HandleTopology(msg maelstrom.Message) error {
-	var body TopologyReq
-	if err := json.Unmarshal(msg.Body, &body); err != nil {
+	body, err := app.Unmarshal(msg.Body)
+	if err != nil {
 		return err
 	}
 
@@ -77,23 +75,22 @@ func (s *server) HandleTopology(msg maelstrom.Message) error {
 	s.mu.Unlock()
 
 	return s.node.Reply(msg, map[string]any{
-		"type": "topology_ok",
+		"type": app.MessageTopologyOk,
 	})
 }
 
 func main() {
 	n := maelstrom.NewNode()
 	s := &server{
-		node: n,
-		seen: make(map[int]bool),
+		node:  n,
+		store: make(map[int]bool),
 	}
 
-	n.Handle("broadcast_ok", nil)
-	n.Handle("broadcast", s.HandleBroadcast)
-	n.Handle("read", s.HandleRead)
-	n.Handle("topology", s.HandleTopology)
+	n.Handle(app.MessageBroadcast, s.HandleBroadcast)
+	n.Handle(app.MessageRead, s.HandleRead)
+	n.Handle(app.MessageTopology, s.HandleTopology)
 
 	if err := n.Run(); err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 }
