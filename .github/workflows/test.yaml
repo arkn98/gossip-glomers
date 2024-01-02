@@ -13,7 +13,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: apt install graphviz gnuplot
+        run: sudo apt-get install -y graphviz gnuplot
 
       - name: Download maelstrom.tar.bz2
         run: wget "https://github.com/jepsen-io/maelstrom/releases/download/v0.2.3/maelstrom.tar.bz2"
