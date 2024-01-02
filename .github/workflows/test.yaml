@@ -1,0 +1,25 @@
+name: Run tests
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download maelstrom.tar.bz2
+        run: wget "https://github.com/jepsen-io/maelstrom/releases/download/v0.2.3/maelstrom.tar.bz2"
+
+      - name: Extract maelstrom
+        run: tar -xvjf maelstrom.tar.bz2
+
+      - name: Add maelstrom to PATH
+        run: echo "$(realpath maelstrom)" >> $GITHUB_PATH
+
+      - name: Run tests
+        run: ./test.sh
