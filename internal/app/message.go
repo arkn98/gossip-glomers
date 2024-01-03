@@ -3,17 +3,19 @@ package app
 import "encoding/json"
 
 const (
-	MessageEcho      = "echo"
-	MessageGenerate  = "generate"
-	MessageBroadcast = "broadcast"
-	MessageRead      = "read"
-	MessageTopology  = "topology"
+	MessageEcho         = "echo"
+	MessageGenerate     = "generate"
+	MessageBroadcast    = "broadcast"
+	MessageRead         = "read"
+	MessageTopology     = "topology"
+	MessageBroadcastAll = "broadcast_all"
 
-	MessageEchoOk      = MessageEcho + "_ok"
-	MessageGenerateOk  = MessageGenerate + "_ok"
-	MessageBroadcastOk = MessageBroadcast + "_ok"
-	MessageReadOk      = MessageRead + "_ok"
-	MessageTopologyOk  = MessageTopology + "_ok"
+	MessageEchoOk         = MessageEcho + "_ok"
+	MessageGenerateOk     = MessageGenerate + "_ok"
+	MessageBroadcastOk    = MessageBroadcast + "_ok"
+	MessageReadOk         = MessageRead + "_ok"
+	MessageTopologyOk     = MessageTopology + "_ok"
+	MessageBroadcastAllOk = MessageBroadcastAll + "_ok"
 )
 
 type Message struct {
@@ -26,6 +28,9 @@ type Message struct {
 	Message  int                 `json:"message,omitempty"`
 	Topology map[string][]string `json:"topology,omitempty"`
 	Type     string              `json:"type,omitempty"`
+
+	// gossip fields
+	Messages []int `json:"messages,omitempty"`
 }
 
 func (m *Message) Unmarshal(data []byte) error {

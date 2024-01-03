@@ -51,12 +51,13 @@ func (s *server) Broadcast(src string, body any) {
 
 func (s *server) HandleRead(msg maelstrom.Message) error {
 	s.mu.RLock()
-	defer s.mu.RUnlock()
 
 	keys := make([]int, 0, len(s.store))
 	for k, _ := range s.store {
 		keys = append(keys, k)
 	}
+
+	s.mu.RUnlock()
 
 	return s.node.Reply(msg, map[string]any{
 		"type":     app.MessageReadOk,

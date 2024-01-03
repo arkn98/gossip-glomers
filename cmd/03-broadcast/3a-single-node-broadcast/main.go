@@ -21,10 +21,8 @@ func (s *server) HandleBroadcast(msg maelstrom.Message) error {
 		return err
 	}
 
-	toAdd := body.Message
-
 	s.mu.Lock()
-	s.store = append(s.store, toAdd)
+	s.store = append(s.store, body.Message)
 	s.mu.Unlock()
 
 	return s.node.Reply(msg, map[string]any{
